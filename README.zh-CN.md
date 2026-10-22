@@ -30,6 +30,14 @@ python -m venv .venv
 
 macOS/Linux：`source .venv/bin/activate`。Windows PowerShell：`.venv\Scripts\Activate.ps1`。
 
+安装固定版本（GitHub research preview；不依赖 PyPI 发布）：
+
+```sh
+python -m pip install git+https://github.com/crown-sports/netops-fault-lab.git@v0.2.0
+```
+
+或者安装当前源码并运行仓库内的示例：
+
 ```bash
 python -m pip install .
 netops-fault-lab diagnose examples/ambiguous.json

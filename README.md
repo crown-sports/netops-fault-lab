@@ -33,6 +33,14 @@ python -m venv .venv
 
 Activate with `source .venv/bin/activate` on macOS/Linux or `.venv\Scripts\Activate.ps1` in Windows PowerShell.
 
+Install the pinned GitHub research preview (no PyPI release is required):
+
+```sh
+python -m pip install git+https://github.com/crown-sports/netops-fault-lab.git@v0.2.0
+```
+
+Or install this checkout and run its included examples:
+
 ```bash
 python -m pip install .
 netops-fault-lab diagnose examples/ambiguous.json
