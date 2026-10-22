@@ -125,3 +125,11 @@ DDP 梯度同步、Qwen3-VL 图文推理和单卡 LoRA 更新均已跑通。这�
 [贡献指南](CONTRIBUTING.md) · [版本记录](CHANGELOG.md) · [软件引用](CITATION.cff)
 
 MIT 许可证。示例和实验数据均自行生成。
+
+## 转发告警去重
+
+```bash
+netops-fault-lab diagnose examples/replayed-event.json --format json
+```
+
+观测可提供 `event_id`，同一采集事件的转发副本保留相同值，记录自身 `id` 仍需唯一。诊断与噪声拟合只计一次，并报告保留记录和忽略副本。相同事件的路径或结果冲突时直接报错。真正独立的重复测量使用不同事件 ID；未标记记录保持原有行为。此功能只消除已标识的重传，不会推断不同告警之间的统计相关性。

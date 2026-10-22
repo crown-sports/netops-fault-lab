@@ -96,11 +96,22 @@ def diagnose(case: Case, model: NoiseModel | None = None, *, decision_threshold:
         factor = math.log(qa / qb) if probe.outcome == "fail" else math.log((1 - qa) / (1 - qb))
         evidence.append({"id": probe.id, "outcome": probe.outcome, "path": list(probe.path),
                          "supports_top_vs_runner_up_log_bayes_factor": factor})
+    event_records = defaultdict(list)
+    for probe in case.observations:
+        if probe.event_id is not None:
+            event_records[probe.event_id].append(probe.id)
+    deduplication = [{"event_id": event, "retained_probe_id": records[0],
+                      "duplicate_probe_ids": records[1:]}
+                     for event, records in event_records.items() if len(records) > 1]
     return {
         "schema_version": 1, "tool_version": __version__, "case_id": case.id,
         "topology_id": case.topology_id, "status": status,
         "decision_threshold": decision_threshold, "model": model.to_dict(),
-        "observed_probes": len(case.observed), "missing_probes": len(case.observations) - len(case.observed),
+        "observed_probes": len(case.observed),
+        "missing_probes": sum(p.outcome == "missing" for p in case.unique_observations),
+        "raw_probe_records": len(case.observations),
+        "deduplicated_probe_records": len(case.observations) - len(case.unique_observations),
+        "event_deduplication": deduplication,
         "entropy_bits": entropy(probabilities.values()),
         "ranking": [{"hypothesis": h, "probability": probabilities[h]} for h in ranking],
         "indistinguishable_from_top": sorted(equivalent),
@@ -109,5 +120,6 @@ def diagnose(case: Case, model: NoiseModel | None = None, *, decision_threshold:
         "evidence_comparison": {"top": top, "runner_up": alternative, "probes": evidence},
         "assumptions": ["At most one failed link, or healthy", "Known, unchanged, undirected probe paths",
                         "Conditionally independent probe outcomes with shared noise rates",
+                        "Repeated event_id values count once; untagged records are assumed independent",
                         "Probabilities depend on this model; a ranking is not a verified root cause"],
     }

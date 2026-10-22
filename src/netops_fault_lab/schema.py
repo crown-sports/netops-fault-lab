@@ -49,6 +49,7 @@ class Probe:
     links: frozenset[str]
     outcome: str | None = None
     cost: float = 1.0
+    event_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -82,7 +83,7 @@ class Case:
 
         def parse_probe(item: object, observed: bool) -> Probe:
             required = {"id", "path", "outcome"} if observed else {"id", "path"}
-            item = _object(item, required, set() if observed else {"cost"}, "probe")
+            item = _object(item, required, {"event_id"} if observed else {"cost"}, "probe")
             identifier = _identifier(item["id"], "probe id")
             if identifier in probe_ids:
                 raise ValueError("Probe IDs must be unique across observations and available probes")
@@ -100,20 +101,40 @@ class Case:
             cost = _number(item.get("cost", 1.0), "probe cost")
             if cost <= 0:
                 raise ValueError("Probe cost must be positive")
-            return Probe(identifier, path, route, outcome, cost)
+            event_id = _identifier(item["event_id"], "event_id") if "event_id" in item else None
+            return Probe(identifier, path, route, outcome, cost, event_id)
 
         observations = tuple(parse_probe(p, True) for p in _list(raw["observations"], "observations"))
         available = tuple(parse_probe(p, False) for p in _list(raw.get("available_probes", []), "available_probes"))
-        return cls(_identifier(raw["id"], "case id"), _identifier(raw["topology_id"], "topology_id"),
+        case = cls(_identifier(raw["id"], "case id"), _identifier(raw["topology_id"], "topology_id"),
                    tuple(links), observations, available)
+        case.unique_observations  # Reject conflicting event copies before inference.
+        return case
 
     @property
     def hypotheses(self) -> tuple[str, ...]:
         return (HEALTHY, *sorted(link.id for link in self.links))
 
     @property
+    def unique_observations(self) -> tuple[Probe, ...]:
+        """Retain one record per explicit event; untagged records stay independent."""
+        events: dict[str, Probe] = {}
+        result = []
+        for probe in self.observations:
+            if probe.event_id is not None:
+                _identifier(probe.event_id, "event_id")
+                if probe.event_id in events:
+                    first = events[probe.event_id]
+                    if (probe.path, probe.outcome) != (first.path, first.outcome):
+                        raise ValueError(f"Conflicting path or outcome for event_id {probe.event_id!r}")
+                    continue
+                events[probe.event_id] = probe
+            result.append(probe)
+        return tuple(result)
+
+    @property
     def observed(self) -> tuple[Probe, ...]:
-        return tuple(p for p in self.observations if p.outcome != "missing")
+        return tuple(p for p in self.unique_observations if p.outcome != "missing")
 
 
 @dataclass(frozen=True)

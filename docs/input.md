@@ -87,3 +87,19 @@ Reports contain input identifiers and paths; review their content before sharing
 CLI exit `0` means a valid report was produced, including ambiguous results.
 Exit `2` means invalid input, parameters, unavailable optional dependencies or I/O failure.
 Output parents must exist; existing files are not overwritten.
+
+## Observation event identity
+
+An observation may include a nonempty string `event_id` (up to 200 characters).
+Copies of one upstream measurement use the same event ID and exactly the same
+ordered path and outcome. Their per-record `id` values must remain unique.
+Copies count once in inference, identifiability, evidence and noise fitting.
+Conflicting copies fail validation. Available probes cannot specify `event_id`.
+Missing event copies count once as missing, never as passed evidence. Untagged
+observations and different event IDs remain independent even on identical paths.
+Use globally scoped collector/event identifiers within each case, including a
+measurement timestamp or sequence if the collector reuses its IDs.
+
+JSON reports expose `raw_probe_records`, `deduplicated_probe_records`, and
+`event_deduplication` (event ID, retained probe ID and duplicate probe IDs).
+`observed_probes` and `missing_probes` count unique events plus untagged records.

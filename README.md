@@ -63,6 +63,24 @@ Without `--model`, the parameters are illustrative defaults, not field calibrati
 | Additional measurements have a cost | Rank supplied probes by expected information gain per cost |
 | Average accuracy hides failures | Keep separate noise-shift, missing-data and copied-alarm results with per-case records |
 
+## Keep forwarded alarms from becoming extra evidence
+
+Collectors can attach an optional `event_id` to observations. Copies of the same
+measurement must retain that ID and the same path/outcome; each record still has
+its own unique `id`. Inference and noise fitting count that event once. Conflicting
+copies are rejected, including `missing` versus `pass`/`fail`.
+
+```bash
+netops-fault-lab diagnose examples/replayed-event.json --format json
+```
+
+The example has five received records but four independent observations. The
+report lists discarded copies and their retained probe IDs. Separate actual
+measurements on the same path should use separate event IDs; untagged observations
+retain the existing independent-evidence behavior. This prevents identified
+retransmissions from inflating confidence; it does not infer statistical dependence
+between different events or repair the existing untagged benchmark data.
+
 ## Method and learning
 
 Assume at most one faulty link in the observation window:
