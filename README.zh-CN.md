@@ -2,15 +2,16 @@
 
 用路径探测定位可疑链路，并决定下一条该测哪里。
 
-[![CI](https://github.com/chrischen-coder/netops-fault-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/chrischen-coder/netops-fault-lab/actions/workflows/ci.yml)
+[![CI](https://github.com/crown-sports/netops-fault-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/crown-sports/netops-fault-lab/actions/workflows/ci.yml)
 [Python 3.10+](pyproject.toml) · [MIT 许可证](LICENSE)
 
-[English](README.md) · [算法](docs/method.zh-CN.md) · [实验](docs/experiments.md) · [输入格式](docs/input.md)
+[English](README.md) · [价值与实现证据](docs/product.md) · [算法](docs/method.zh-CN.md) · [实验](docs/experiments.md) · [输入格式](docs/input.md)
 
 两条到数据库的探测都失败，到缓存的探测正常。故障可能在核心链路，也可能在数据库接入链路。
 只看失败次数，两条链路无法区分。继续收集同样路径上的告警，也未必能定位问题。
 
-NetOps Fault Lab 根据已知路径和探测结果给出候选排名，指出当前无法区分的链路，再推荐最值得补测的路径。
+适合已有网络路径快照和探测结果的研究人员、网络运维工程师。
+NetOps Fault Lab 离线根据已知路径和探测结果给出候选排名，指出当前无法区分的链路，再推荐最值得补测的路径。
 输入为结构化 JSON；输出为 CLI、JSON 或离线 HTML 报告。
 
 ![实际运行报告：两个候选无法区分，建议补测 r1 到 r2](docs/assets/report.png)
@@ -23,20 +24,14 @@ NetOps Fault Lab 根据已知路径和探测结果给出候选排名，指出当
 Python 3.10+：
 
 ```bash
-git clone https://github.com/chrischen-coder/netops-fault-lab.git
+git clone --branch v0.2.0 https://github.com/crown-sports/netops-fault-lab.git
 cd netops-fault-lab
 python -m venv .venv
 ```
 
 macOS/Linux：`source .venv/bin/activate`。Windows PowerShell：`.venv\Scripts\Activate.ps1`。
 
-安装固定版本（GitHub research preview；不依赖 PyPI 发布）：
-
-```sh
-python -m pip install git+https://github.com/crown-sports/netops-fault-lab.git@v0.2.0
-```
-
-或者安装当前源码并运行仓库内的示例：
+安装已固定到 v0.2.0 的源码，然后比较自带的补测前后样例：
 
 ```bash
 python -m pip install .
@@ -67,6 +62,24 @@ Next probe: probe-core (r1 -> r2); expected gain 0.665 bits
 | 探测有成本，不知道下一步该查哪里 | 按期望信息增益／成本给候选探测排序 |
 | 论文或方案只报告平均准确率，看不出何时失效 | 分别测试噪声变化、55% 漏采和重复告警，保存逐例结果 |
 
+## 转发告警去重
+
+```bash
+netops-fault-lab diagnose examples/replayed-event.json --format json
+```
+
+观测可提供 `event_id`，同一采集事件的转发副本保留相同值，记录自身 `id` 仍需唯一。诊断与噪声拟合只计一次，并报告保留记录和忽略副本。相同事件的路径或结果冲突时直接报错。真正独立的重复测量使用不同事件 ID；未标记记录保持原有行为。此功能只消除已标识的重传，不会推断不同告警之间的统计相关性。
+
+## 接入自己的一个事件
+
+将 `examples/ambiguous.json` 复制为 `incident.json`，换成一个稳定时间窗口内的链路、真实路径和探测结果。只加入确实能执行的候选探测；同一事件的转发副本保留 `event_id`。[输入约定](docs/input.md)列出完整字段。
+
+```bash
+netops-fault-lab diagnose incident.json --format html --output incident-report.html
+```
+
+先看无法区分的候选与建议路径，用现有工具补测，再把结果写回事件并重跑。本工具不操作设备。退出 `0` 只代表报告有效，也包括无法唯一定位的情况。解读真实概率前，需要用独立标注事件拟合噪声参数、再用留出数据校验；默认参数和仓库样例用于演示。[接入步骤与证据](docs/product.md)。
+
 ## 算法与训练
 
 假设一个时间窗口内至多有一条故障链路。对每个候选计算：
@@ -79,7 +92,8 @@ Next probe: probe-core (r1 -> r2); expected gain 0.665 bits
 命中故障路径的失败率、背景失败率和健康先验可以从带标签的数据估计，采用 Beta(1,1) 平滑。
 基线包含失败路径投票、训练过的逻辑回归和贝叶斯推断。它们使用相同训练／测试划分。
 
-采用的是已有的统计方法。项目的工作重点是可复现的定位与补测实验、无法区分的情况和失败分析。
+采用的是已有的统计方法。现有价值在于把歧义说明、补测建议和事件计数连成可检查流程；
+[实现、回归测试与局限](docs/product.md)可以逐项核对。
 [公式、假设和相关研究](docs/method.zh-CN.md)。
 
 ## 已测结果
@@ -133,11 +147,3 @@ DDP 梯度同步、Qwen3-VL 图文推理和单卡 LoRA 更新均已跑通。这�
 [贡献指南](CONTRIBUTING.md) · [版本记录](CHANGELOG.md) · [软件引用](CITATION.cff)
 
 MIT 许可证。示例和实验数据均自行生成。
-
-## 转发告警去重
-
-```bash
-netops-fault-lab diagnose examples/replayed-event.json --format json
-```
-
-观测可提供 `event_id`，同一采集事件的转发副本保留相同值，记录自身 `id` 仍需唯一。诊断与噪声拟合只计一次，并报告保留记录和忽略副本。相同事件的路径或结果冲突时直接报错。真正独立的重复测量使用不同事件 ID；未标记记录保持原有行为。此功能只消除已标识的重传，不会推断不同告警之间的统计相关性。
