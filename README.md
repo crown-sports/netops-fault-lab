@@ -2,16 +2,17 @@
 
 Rank likely faulty links from path probes, then choose what to measure next.
 
-[![CI](https://github.com/chrischen-coder/netops-fault-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/chrischen-coder/netops-fault-lab/actions/workflows/ci.yml)
+[![CI](https://github.com/crown-sports/netops-fault-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/crown-sports/netops-fault-lab/actions/workflows/ci.yml)
 [Python 3.10+](pyproject.toml) · [MIT license](LICENSE)
 
-[简体中文](README.zh-CN.md) · [Method](docs/method.md) · [Experiments](docs/experiments.md) · [Input format](docs/input.md)
+[简体中文](README.zh-CN.md) · [Value and evidence](docs/product.md) · [Method](docs/method.md) · [Experiments](docs/experiments.md) · [Input format](docs/input.md)
 
 Two paths to a database fail; paths to a cache pass. Both the core link and the
 database access link explain the observations. Counting failures cannot separate
 them, and copies of the same alarms add no independent evidence.
 
-This tool ranks fault hypotheses, flags links that the observations cannot
+For network researchers and operators who already have a path snapshot and probe
+results. This offline tool ranks fault hypotheses, flags links that the observations cannot
 distinguish, and recommends the next useful path probe. It reads structured JSON
 and produces text, JSON or an offline HTML report.
 
@@ -26,20 +27,14 @@ scripted to demonstrate inference; no real network was probed. [After the extra 
 Python 3.10+:
 
 ```bash
-git clone https://github.com/chrischen-coder/netops-fault-lab.git
+git clone --branch v0.2.0 https://github.com/crown-sports/netops-fault-lab.git
 cd netops-fault-lab
 python -m venv .venv
 ```
 
 Activate with `source .venv/bin/activate` on macOS/Linux or `.venv\Scripts\Activate.ps1` in Windows PowerShell.
 
-Install the pinned GitHub research preview (no PyPI release is required):
-
-```sh
-python -m pip install git+https://github.com/crown-sports/netops-fault-lab.git@v0.2.0
-```
-
-Or install this checkout and run its included examples:
+Install this pinned checkout, then compare the included before/after cases:
 
 ```bash
 python -m pip install .
@@ -89,6 +84,23 @@ retain the existing independent-evidence behavior. This prevents identified
 retransmissions from inflating confidence; it does not infer statistical dependence
 between different events or repair the existing untagged benchmark data.
 
+## Try one incident from your network
+
+Copy `examples/ambiguous.json` to `incident.json` and replace its links, actual
+ordered paths and outcomes with one stable observation window. Add only probes
+you could perform; preserve `event_id` across forwarded copies. The
+[input contract](docs/input.md) specifies all required fields.
+
+```bash
+netops-fault-lab diagnose incident.json --format html --output incident-report.html
+```
+
+Inspect the ambiguity and proposed probe, measure with your existing tooling,
+then add that result and rerun. The CLI does not contact devices. Exit `0` means a
+valid report, including an ambiguous one. Before trusting probability magnitudes,
+fit and validate noise parameters on separate labeled incidents; the included
+fixtures and default parameters are demonstrations. [Integration steps and evidence](docs/product.md).
+
 ## Method and learning
 
 Assume at most one faulty link in the observation window:
@@ -103,7 +115,9 @@ estimated from labeled training data with Beta(1,1) smoothing. Baselines include
 failed-path voting, fitted logistic regression and Bayesian inference on the same splits.
 
 These are established statistical methods. The project focuses on reproducible
-diagnosis and probe-selection experiments, identifiability and failure analysis.
+diagnosis and probe-selection experiments, identifiability and failure analysis. The inspectable advantage is the combination
+of ambiguity reporting, next-probe proposals and explicit event accounting;
+[implementation and regression evidence](docs/product.md) describe the boundary.
 [Equations, assumptions and related work](docs/method.md).
 
 ## Measured results
