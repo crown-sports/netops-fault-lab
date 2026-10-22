@@ -1,6 +1,6 @@
 """Offline probabilistic diagnosis for path-level network probes."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 from .inference import diagnose, fit_noise
 from .schema import Case, NoiseModel

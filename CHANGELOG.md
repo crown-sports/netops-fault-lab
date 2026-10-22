@@ -1,7 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 — 2026-10-22 · research preview
 
+- Include public fixtures and reproduction material in the source distribution; CI runs its bundled tests outside the checkout.
+- Deduplicate explicitly identified observation events in diagnosis and noise fitting. Reject conflicting copies, preserve independent measurements, and expose ignored-copy provenance in reports.
 - Add pinned GPU requirements, a SHA-256-verified model downloader using official ModelScope or Hugging Face hosting, and English/Chinese setup guides.
 - Record successful eight-GPU BF16/NCCL/DDP checks and single-GPU Qwen3-VL inference, eight LoRA steps and adapter reload on RTX 5090 hardware.
 - Keep these two-fixture environment checks separate from diagnosis accuracy and scaling claims.
