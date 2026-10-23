@@ -1,30 +1,30 @@
 # NetOps Fault Lab
 
-Rank likely faulty links from path probes, then choose what to measure next.
+Rank suspect network links and choose where to probe next.
 
 [![CI](https://github.com/crown-sports/netops-fault-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/crown-sports/netops-fault-lab/actions/workflows/ci.yml)
-[Python 3.10+](pyproject.toml) · [MIT license](LICENSE)
+[Python 3.10+](pyproject.toml) · [v0.2.0 preview](https://github.com/crown-sports/netops-fault-lab/releases/tag/v0.2.0) · [MIT](LICENSE)
 
-[简体中文](README.zh-CN.md) · [Value and evidence](docs/product.md) · [Method](docs/method.md) · [Experiments](docs/experiments.md) · [Input format](docs/input.md)
+[中文](README.zh-CN.md) · [Input format](docs/input.md) · [How it works](docs/method.md) · [Experiments](docs/experiments.md)
 
-Two paths to a database fail; paths to a cache pass. Both the core link and the
-database access link explain the observations. Counting failures cannot separate
-them, and copies of the same alarms add no independent evidence.
+Two probes to the database fail; probes to the cache pass. Is the fault on the
+core link or the database link? With those paths, either fault explains the
+observations. This offline tool shows the ambiguity and suggests a measurement
+that can tell the candidates apart.
 
-For network researchers and operators who already have a path snapshot and probe
-results. This offline tool ranks fault hypotheses, flags links that the observations cannot
-distinguish, and recommends the next useful path probe. It reads structured JSON
-and produces text, JSON or an offline HTML report.
+## Before: two links fit
 
-![Actual report: two indistinguishable links and a recommended next probe](docs/assets/report.png)
+![Before the extra probe: core and database each have 49.8 percent model probability; probe r1 to r2 next](docs/assets/probe-before-v0.2.png)
 
-The synthetic example starts with two candidates at 49.8% each. Adding one failed
-`r1 → r2` probe raises the core link's model probability to 96.7%. That outcome is
-scripted to demonstrate inference; no real network was probed. [After the extra probe](docs/assets/after-probe.png).
+*Actual v0.2.0 report from `examples/ambiguous.json`. Both candidates have 49.8% model probability. The suggested next probe is `r1 → r2`.*
 
-## Quick start
+## After: one extra observation
 
-Python 3.10+:
+![After adding the scripted failed r1 to r2 probe, core rises to 96.7 percent](docs/assets/probe-after-v0.2.png)
+
+*`examples/after-probe.json` adds a failed `r1 → r2` result; core rises to 96.7%. Both inputs are synthetic. The tool sends no network probes.*
+
+## Run the example
 
 ```bash
 git clone --branch v0.2.0 https://github.com/crown-sports/netops-fault-lab.git
@@ -32,149 +32,59 @@ cd netops-fault-lab
 python -m venv .venv
 ```
 
-Activate with `source .venv/bin/activate` on macOS/Linux or `.venv\Scripts\Activate.ps1` in Windows PowerShell.
-
-Install this pinned checkout, then compare the included before/after cases:
+Activate with `source .venv/bin/activate` on macOS/Linux or `.venv\Scripts\Activate.ps1` in PowerShell, then:
 
 ```bash
 python -m pip install .
-netops-fault-lab diagnose examples/ambiguous.json
-netops-fault-lab diagnose examples/after-probe.json
-netops-fault-lab diagnose examples/ambiguous.json --format html --output report.html
+netops-fault-lab diagnose examples/ambiguous.json --format html --output before.html
+netops-fault-lab diagnose examples/after-probe.json --format html --output after.html
 ```
 
-Key output from the first command:
+Open the two HTML files. Below the topology, each report shows which observations
+separate the candidates and which measurement to try next. Output filenames must
+be new. Omit `--format` and `--output` for a terminal summary, or use `--format json`
+for scripts. Core inference uses only the Python standard library.
 
-```text
-Status: ambiguous
-core                 0.498
-database             0.498
-Indistinguishable: core, database
-Next probe: probe-core (r1 -> r2); expected gain 0.665 bits
-```
+## Use your own paths and measurements
 
-Open `report.html` to inspect the paths, ranking and evidence. Output files must
-not already exist. Core inference uses only the Python standard library.
-Without `--model`, the parameters are illustrative defaults, not field calibration.
-
-## What this addresses
-
-| Problem | Current behavior |
-| --- | --- |
-| One bad link causes several failed paths | Use both passed and failed probes to rank hypotheses |
-| Different faults produce the same observations | Report their shared path signature instead of presenting a unique diagnosis |
-| Additional measurements have a cost | Rank supplied probes by expected information gain per cost |
-| Average accuracy hides failures | Keep separate noise-shift, missing-data and copied-alarm results with per-case records |
-
-## Keep forwarded alarms from becoming extra evidence
-
-Collectors can attach an optional `event_id` to observations. Copies of the same
-measurement must retain that ID and the same path/outcome; each record still has
-its own unique `id`. Inference and noise fitting count that event once. Conflicting
-copies are rejected, including `missing` versus `pass`/`fail`.
-
-```bash
-netops-fault-lab diagnose examples/replayed-event.json --format json
-```
-
-The example has five received records but four independent observations. The
-report lists discarded copies and their retained probe IDs. Separate actual
-measurements on the same path should use separate event IDs; untagged observations
-retain the existing independent-evidence behavior. This prevents identified
-retransmissions from inflating confidence; it does not infer statistical dependence
-between different events or repair the existing untagged benchmark data.
-
-## Try one incident from your network
-
-Copy `examples/ambiguous.json` to `incident.json` and replace its links, actual
-ordered paths and outcomes with one stable observation window. Add only probes
-you could perform; preserve `event_id` across forwarded copies. The
-[input contract](docs/input.md) specifies all required fields.
+Copy `examples/ambiguous.json` to `incident.json`. Replace the links, probe paths
+and outcomes with one observation window from your network. Include only candidate
+probes you can actually run. The [input guide](docs/input.md) lists the fields.
 
 ```bash
 netops-fault-lab diagnose incident.json --format html --output incident-report.html
 ```
 
-Inspect the ambiguity and proposed probe, measure with your existing tooling,
-then add that result and rerun. The CLI does not contact devices. Exit `0` means a
-valid report, including an ambiguous one. Before trusting probability magnitudes,
-fit and validate noise parameters on separate labeled incidents; the included
-fixtures and default parameters are demonstrations. [Integration steps and evidence](docs/product.md).
+Run the suggested measurement with your existing tooling, add its outcome, and
+repeat. Exit `0` means a valid report, including an ambiguous one; invalid inputs
+return `2`.
 
-## Method and learning
+The model assumes known, unchanged paths and at most one failed link. Default
+noise parameters are illustrative. Fit them on labeled incidents and check them
+on held-out data before interpreting the probability magnitudes.
+[Model assumptions and fitting](docs/method.md).
 
-Assume at most one faulty link in the observation window:
-
-```text
-posterior ∝ prior × likelihood of the observed probe outcomes
-next probe = highest expected uncertainty reduction / cost
-```
-
-The affected-path failure rate, background failure rate and healthy prior are
-estimated from labeled training data with Beta(1,1) smoothing. Baselines include
-failed-path voting, fitted logistic regression and Bayesian inference on the same splits.
-
-These are established statistical methods. The project focuses on reproducible
-diagnosis and probe-selection experiments, identifiability and failure analysis. The inspectable advantage is the combination
-of ambiguity reporting, next-probe proposals and explicit event accounting;
-[implementation and regression evidence](docs/product.md) describe the boundary.
-[Equations, assumptions and related work](docs/method.md).
-
-## Measured results
-
-Three seeds; each uses 24 training and 24 distinct test topologies, with 12
-incidents per topology. Each condition contains **864 synthetic test incidents**.
-
-| Condition | Failed-path votes Top-1 | Logistic Top-1 | Bayesian Top-1 |
-| --- | ---: | ---: | ---: |
-| Matched noise | 56.6% | 72.5% | 72.3% |
-| Increased background failures, weaker fault signal | 24.4% | 37.7% | 37.2% |
-| 55% missing probes | 40.6% | 49.3% | 49.7% |
-| Same alarms copied four times | 56.6% | 72.6% | 72.1% |
-
-Bayesian ranking does not clearly beat logistic regression. In a separate active
-experiment starting with three probe records and allowing four more measurements,
-**information-gain selection reaches 72.5%, versus 57.2% for random selection**.
-Both policies share the candidate pool and sampled outcomes. The observed difference
-is 15.3 percentage points; a paired topology bootstrap gives a 95% interval of 11.8–18.5 points.
-
-![Measured ranking and active-probe comparisons](docs/assets/benchmark.png)
-
-Confidence also fails: copying alarms increases the error rate among accepted
-diagnoses from 2.6% to 12.6%; under noise shift it reaches 38.2%. A `0.9` decision
-threshold does not guarantee 90% correctness.
-
-These simulations test method behavior, not production accuracy or recovery time.
-[Datasets, per-case predictions, learned parameters and protocol](docs/experiments.md).
-
-## Reproduce
+## Forwarded copies should not count twice
 
 ```bash
-python -m pip install '.[bench]'
-netops-fault-lab benchmark --output runs/local
-netops-fault-lab fit benchmarks/results/v0.1/train-7.jsonl.gz --output fitted-model.json
-netops-fault-lab diagnose examples/ambiguous.json --model fitted-model.json
-python -m unittest discover -s tests -v
+netops-fault-lab diagnose examples/replayed-event.json --format json
 ```
 
-Choose a new output directory. The benchmark saves data, topology splits, fitted
-parameters, per-case predictions and active-probe traces.
+This example has five records from four measurements. Copies of one event share
+`event_id`; the report keeps one and marks one ignored copy. Each record's `id`
+stays unique. Conflicting paths or outcomes for one event are rejected.
+Independent repeated measurements need different event IDs; untagged records
+are treated as independent.
 
-## Scope
+## Explore the experiments
 
-Known static paths, a healthy network or one failed link, and conditionally
-independent outcomes. Changing routes, simultaneous failures, correlated alarms,
-application faults and parameter drift need additional modeling. A posterior
-ranking is not proof of the physical root cause.
+The synthetic benchmark compares failed-path voting, logistic regression and
+Bayesian ranking under missing probes, duplicate alarms and changing noise.
+Bayesian ranking is close to logistic regression. In the separate active-probe
+experiment, information-gain selection reaches **72.5% Top-1**, versus **57.2%**
+for random selection with the same four-probe budget.
 
-This release is an offline algorithm and experiment tool. Next: controlled
-network measurements, correlated-noise and multiple-fault models. The planned
-log-text and topology-image accuracy experiments are not implemented. [Roadmap](docs/roadmap.zh-CN.md).
+These are simulation results, not production-network accuracy.
+[Data, per-case results and reproduction commands](docs/experiments.md).
 
-The optional [GPU setup and smoke checks](experiments/gpu/README.md) have been run
-on eight RTX 5090 GPUs: DDP synchronization, local Qwen3-VL image inference and
-single-GPU LoRA updates. These checks validate the environment, not diagnosis accuracy.
-
-[Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md) · [Software citation](CITATION.cff)
-
-MIT licensed. All bundled examples and experimental data are generated for this project.
+[Implementation notes](docs/product.md) · [Image sources](docs/screenshots.md) · [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md) · [Citation](CITATION.cff)

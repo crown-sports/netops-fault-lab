@@ -1,27 +1,29 @@
 # NetOps Fault Lab
 
-用路径探测定位可疑链路，并决定下一条该测哪里。
+找出可疑链路，再决定下一条该测哪里。
 
 [![CI](https://github.com/crown-sports/netops-fault-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/crown-sports/netops-fault-lab/actions/workflows/ci.yml)
-[Python 3.10+](pyproject.toml) · [MIT 许可证](LICENSE)
+[Python 3.10+](pyproject.toml) · [v0.2.0 预览版](https://github.com/crown-sports/netops-fault-lab/releases/tag/v0.2.0) · [MIT](LICENSE)
 
-[English](README.md) · [价值与实现证据](docs/product.md) · [算法](docs/method.zh-CN.md) · [实验](docs/experiments.md) · [输入格式](docs/input.md)
+[English](README.md) · [输入格式](docs/input.md) · [算法说明](docs/method.zh-CN.md) · [实验](docs/experiments.md)
 
-两条到数据库的探测都失败，到缓存的探测正常。故障可能在核心链路，也可能在数据库接入链路。
-只看失败次数，两条链路无法区分。继续收集同样路径上的告警，也未必能定位问题。
+到数据库的两条探测都失败，到缓存的探测正常。问题在核心链路，还是数据库接入链路？
+这几条路径还不足以区分。NetOps Fault Lab 离线分析已知路径和结果，列出无法区分的候选，
+再建议一条能补充信息的探测。
 
-适合已有网络路径快照和探测结果的研究人员、网络运维工程师。
-NetOps Fault Lab 离线根据已知路径和探测结果给出候选排名，指出当前无法区分的链路，再推荐最值得补测的路径。
-输入为结构化 JSON；输出为 CLI、JSON 或离线 HTML 报告。
+## 补测前：两条链路都能解释现象
 
-![实际运行报告：两个候选无法区分，建议补测 r1 到 r2](docs/assets/report.png)
+![补测前：core 与 database 的模型概率均为 49.8%，建议探测 r1 到 r2](docs/assets/probe-before-v0.2.png)
 
-上图来自仓库的合成样例。补入一次 `r1 → r2` 失败结果后，核心链路的模型概率从 49.8% 变为 96.7%。
-这次结果由样例预设，用于演示推断过程，没有向真实网络发送探测。[补测后的报告截图](docs/assets/after-probe.png)。
+*`examples/ambiguous.json` 的 v0.2.0 实际报告。两个候选均为 49.8%，建议下一步测 `r1 → r2`。*
 
-## 快速开始
+## 补测后：多一条结果，排名变了
 
-Python 3.10+：
+![加入预设的 r1 到 r2 失败结果后，core 的模型概率升为 96.7%](docs/assets/probe-after-v0.2.png)
+
+*`examples/after-probe.json` 补入一次 `r1 → r2` 失败，core 升到 96.7%。两份输入均为合成样例，工具不会向网络发探测。*
+
+## 跑一下这个例子
 
 ```bash
 git clone --branch v0.2.0 https://github.com/crown-sports/netops-fault-lab.git
@@ -29,121 +31,49 @@ cd netops-fault-lab
 python -m venv .venv
 ```
 
-macOS/Linux：`source .venv/bin/activate`。Windows PowerShell：`.venv\Scripts\Activate.ps1`。
-
-安装已固定到 v0.2.0 的源码，然后比较自带的补测前后样例：
+macOS/Linux 执行 `source .venv/bin/activate`；PowerShell 执行 `.venv\Scripts\Activate.ps1`，然后：
 
 ```bash
 python -m pip install .
-netops-fault-lab diagnose examples/ambiguous.json
-netops-fault-lab diagnose examples/after-probe.json
-netops-fault-lab diagnose examples/ambiguous.json --format html --output report.html
+netops-fault-lab diagnose examples/ambiguous.json --format html --output before.html
+netops-fault-lab diagnose examples/after-probe.json --format html --output after.html
 ```
 
-第一条命令的关键输出：
+打开两个 HTML 文件。拓扑下面还列出每条观测如何区分候选，以及下一步可测的路径。
+输出文件名必须尚不存在。省略 `--format` 和 `--output` 可在终端查看摘要，`--format json` 可供脚本读取。
+核心推断只依赖 Python 标准库。
 
-```text
-Status: ambiguous
-core                 0.498
-database             0.498
-Indistinguishable: core, database
-Next probe: probe-core (r1 -> r2); expected gain 0.665 bits
-```
+## 换成自己的路径和探测结果
 
-打开 `report.html` 查看路径、排名和证据。文件必须尚不存在。核心推断只依赖 Python 标准库。
-未传入 `--model` 时使用演示参数，不能把输出概率直接当成真实网络的正确率。
-
-## 解决哪几个问题
-
-| 问题 | 当前提供的能力 |
-| --- | --- |
-| 一条链路故障引发多条路径告警，单看失败次数无法定位 | 同时利用失败和成功探测，按贝叶斯后验排序 |
-| 两个故障位置会产生相同观测，算法仍给出唯一答案 | 检查路径签名，把无法区分的候选一起列出 |
-| 探测有成本，不知道下一步该查哪里 | 按期望信息增益／成本给候选探测排序 |
-| 论文或方案只报告平均准确率，看不出何时失效 | 分别测试噪声变化、55% 漏采和重复告警，保存逐例结果 |
-
-## 转发告警去重
-
-```bash
-netops-fault-lab diagnose examples/replayed-event.json --format json
-```
-
-观测可提供 `event_id`，同一采集事件的转发副本保留相同值，记录自身 `id` 仍需唯一。诊断与噪声拟合只计一次，并报告保留记录和忽略副本。相同事件的路径或结果冲突时直接报错。真正独立的重复测量使用不同事件 ID；未标记记录保持原有行为。此功能只消除已标识的重传，不会推断不同告警之间的统计相关性。
-
-## 接入自己的一个事件
-
-将 `examples/ambiguous.json` 复制为 `incident.json`，换成一个稳定时间窗口内的链路、真实路径和探测结果。只加入确实能执行的候选探测；同一事件的转发副本保留 `event_id`。[输入约定](docs/input.md)列出完整字段。
+复制 `examples/ambiguous.json` 为 `incident.json`，换成同一观测窗口内的链路、真实路径和结果，
+只加入实际能执行的候选探测。[输入说明](docs/input.md)列出了完整字段。
 
 ```bash
 netops-fault-lab diagnose incident.json --format html --output incident-report.html
 ```
 
-先看无法区分的候选与建议路径，用现有工具补测，再把结果写回事件并重跑。本工具不操作设备。退出 `0` 只代表报告有效，也包括无法唯一定位的情况。解读真实概率前，需要用独立标注事件拟合噪声参数、再用留出数据校验；默认参数和仓库样例用于演示。[接入步骤与证据](docs/product.md)。
+用现有工具执行建议的探测，把结果写回，再运行一次。退出 `0` 表示报告有效，也包括无法唯一定位的情况；
+输入无效返回 `2`。
 
-## 算法与训练
+模型假设路径已知且不变、至多一条链路故障。默认噪声参数用于演示；解读真实概率前，
+需要用已标注事件拟合参数，再用留出的数据检验。[模型假设与参数拟合](docs/method.zh-CN.md)。
 
-假设一个时间窗口内至多有一条故障链路。对每个候选计算：
-
-```text
-后验概率 ∝ 先验概率 × 每条探测结果在该故障下出现的概率
-下一条探测 = 期望减少的不确定性 / 探测成本 最大的候选
-```
-
-命中故障路径的失败率、背景失败率和健康先验可以从带标签的数据估计，采用 Beta(1,1) 平滑。
-基线包含失败路径投票、训练过的逻辑回归和贝叶斯推断。它们使用相同训练／测试划分。
-
-采用的是已有的统计方法。现有价值在于把歧义说明、补测建议和事件计数连成可检查流程；
-[实现、回归测试与局限](docs/product.md)可以逐项核对。
-[公式、假设和相关研究](docs/method.zh-CN.md)。
-
-## 已测结果
-
-3 个种子；每个种子使用 24 个训练拓扑、24 个不同的测试拓扑，每个拓扑 12 个事件。
-每个条件共有 864 个测试事件，全部由生成器构造。
-
-| 条件 | 失败路径投票 Top-1 | 逻辑回归 Top-1 | 贝叶斯 Top-1 |
-| --- | ---: | ---: | ---: |
-| 训练与测试噪声相同 | 56.6% | 72.5% | 72.3% |
-| 背景失败增加、故障信号减弱 | 24.4% | 37.7% | 37.2% |
-| 55% 探测漏采 | 40.6% | 49.3% | 49.7% |
-| 同一批告警复制 4 份 | 56.6% | 72.6% | 72.1% |
-
-贝叶斯没有明显胜过逻辑回归。另一个实验从 3 条初始探测记录出发，允许最多 4 次补测：
-**信息增益选择达到 72.5%，随机选择为 57.2%**。两者共享候选池和预先采样的探测结果。
-观察到的差值为 15.3 个百分点，按拓扑配对 bootstrap 的 95% 区间为 11.8–18.5 个百分点。
-
-![原始实验结果生成的定位与主动探测对照图](docs/assets/benchmark.png)
-
-也要看置信度：重复告警后，被模型接受的结果中，错误比例从 2.6% 升至 12.6%；
-噪声变化时达到 38.2%。`0.9` 阈值不能保证 90% 正确率。
-
-这些实验用于检查方法行为，不能推导生产网准确率或故障恢复时间。
-[数据、逐例预测、学习参数与测量口径](docs/experiments.md)。
-
-## 复现实验
+## 同一告警转发两次，只算一次
 
 ```bash
-python -m pip install '.[bench]'
-netops-fault-lab benchmark --output runs/local
-netops-fault-lab fit benchmarks/results/v0.1/train-7.jsonl.gz --output fitted-model.json
-netops-fault-lab diagnose examples/ambiguous.json --model fitted-model.json
-python -m unittest discover -s tests -v
+netops-fault-lab diagnose examples/replayed-event.json --format json
 ```
 
-输出目录需尚不存在。实验会保存数据、拓扑划分、学习参数、逐例预测和主动探测记录。
+样例的 5 条记录来自 4 次测量。同一事件的副本共用 `event_id`，报告保留一条、标记一条忽略的副本，
+每条记录自身的 `id` 仍然唯一。同一事件若出现冲突路径或结果，会直接报错。
+独立重复测量使用不同事件 ID；不带事件 ID 的记录按相互独立处理。
 
-## 适用范围
+## 继续看实验
 
-当前适用于已知静态路径上的单链路故障或健康状态，假设探测结果在给定故障下相互独立。
-路由变化、多处同时故障、相关告警、应用层根因和参数漂移，需要另外建模。
-同一路径上的健康与故障样本也可能偶然产生相同结果，后验排名不是故障证明。
+合成实验比较失败路径投票、逻辑回归和贝叶斯排名，并测试漏采、重复告警和噪声变化。
+贝叶斯排名与逻辑回归接近。在单独的主动探测实验中，同样最多补测 4 次，
+信息增益选择的 **Top-1 为 72.5%**，随机选择为 **57.2%**。
 
-首版完成的是离线算法与实验工具。后续优先接入可控网络实验和真实探测，再验证相关噪声、多故障模型；
-[分阶段计划](docs/roadmap.zh-CN.md)。
+这些是仿真结果，不能当成生产网准确率。[数据、逐例结果与复现命令](docs/experiments.md)。
 
-[GPU 环境与训练自检](experiments/gpu/README.zh-CN.md)已在 8 张 RTX 5090 上验证：
-DDP 梯度同步、Qwen3-VL 图文推理和单卡 LoRA 更新均已跑通。这是环境验证，尚未进行大模型故障定位评测。
-
-[贡献指南](CONTRIBUTING.md) · [版本记录](CHANGELOG.md) · [软件引用](CITATION.cff)
-
-MIT 许可证。示例和实验数据均自行生成。
+[实现说明](docs/product.md) · [图片来源](docs/screenshots.md) · [贡献指南](CONTRIBUTING.md) · [版本记录](CHANGELOG.md) · [软件引用](CITATION.cff)
