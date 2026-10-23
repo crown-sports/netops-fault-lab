@@ -14,8 +14,11 @@ from .schema import Case, NoiseModel, read_dataset, read_json
 
 def _write(text: str, output: str | None) -> None:
     if output:
-        with Path(output).open('x', encoding='utf-8') as stream:
+        path = Path(output)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open('x', encoding='utf-8') as stream:
             stream.write(text + '\n')
+        print(f'Output written to {path.resolve()}', file=sys.stderr)
     else:
         print(text)
 
@@ -29,7 +32,7 @@ def main(argv: list[str] | None = None) -> int:
     diagnosis.add_argument('--model')
     diagnosis.add_argument('--threshold', type=float, default=0.9)
     diagnosis.add_argument('--format', choices=['text', 'json', 'html'], default='text')
-    diagnosis.add_argument('--output')
+    diagnosis.add_argument('--output', help='New report file; parent directories are created')
     fit = commands.add_parser('fit', help='Estimate observation noise from labeled JSONL')
     fit.add_argument('dataset')
     fit.add_argument('--output', required=True)
