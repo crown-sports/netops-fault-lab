@@ -3,7 +3,7 @@
 Rank suspect network links and choose where to probe next.
 
 [![CI](https://github.com/crown-sports/netops-fault-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/crown-sports/netops-fault-lab/actions/workflows/ci.yml)
-[Python 3.10+](pyproject.toml) · [v0.2.0 preview](https://github.com/crown-sports/netops-fault-lab/releases/tag/v0.2.0) · [MIT](LICENSE)
+[Python 3.10+](pyproject.toml) · [v0.2.1 preview](https://github.com/crown-sports/netops-fault-lab/releases/tag/v0.2.1) · [MIT](LICENSE)
 
 [中文](README.zh-CN.md) · [Input format](docs/input.md) · [How it works](docs/method.md) · [Experiments](docs/experiments.md)
 
@@ -16,7 +16,7 @@ that can tell the candidates apart.
 
 ![Before the extra probe: core and database each have 49.8 percent model probability; probe r1 to r2 next](docs/assets/probe-before-v0.2.png)
 
-*Actual v0.2.0 report from `examples/ambiguous.json`. Both candidates have 49.8% model probability. The suggested next probe is `r1 → r2`.*
+*Actual v0.2.1 report from `examples/ambiguous.json`. Both candidates have 49.8% model probability. The suggested next probe is `r1 → r2`.*
 
 ## After: one extra observation
 
@@ -27,7 +27,7 @@ that can tell the candidates apart.
 ## Run the example
 
 ```bash
-git clone --branch v0.2.0 https://github.com/crown-sports/netops-fault-lab.git
+git clone --branch v0.2.1 https://github.com/crown-sports/netops-fault-lab.git
 cd netops-fault-lab
 python -m venv .venv
 ```

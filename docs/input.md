@@ -90,15 +90,14 @@ Reports contain input identifiers and paths; review their content before sharing
 
 CLI exit `0` means a valid report was produced, including ambiguous results.
 Exit `2` means invalid input, parameters, unavailable optional dependencies or I/O failure.
-On main, output parent directories are created and the saved path is printed
+Since v0.2.1, output parent directories are created and the saved path is printed
 to stderr. With v0.2.0, create parents first. Existing files are never overwritten.
 
 ## First incident and error recovery
 
-For the README's v0.2.0 checkout:
+With v0.2.1, parent directories are created automatically:
 
 ```bash
-python -c "from pathlib import Path; Path('reports/incident-1').mkdir(parents=True, exist_ok=True)"
 netops-fault-lab diagnose incident.json --format html --output reports/incident-1/report.html
 ```
 

@@ -3,7 +3,7 @@
 找出可疑链路，再决定下一条该测哪里。
 
 [![CI](https://github.com/crown-sports/netops-fault-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/crown-sports/netops-fault-lab/actions/workflows/ci.yml)
-[Python 3.10+](pyproject.toml) · [v0.2.0 预览版](https://github.com/crown-sports/netops-fault-lab/releases/tag/v0.2.0) · [MIT](LICENSE)
+[Python 3.10+](pyproject.toml) · [v0.2.1 预览版](https://github.com/crown-sports/netops-fault-lab/releases/tag/v0.2.1) · [MIT](LICENSE)
 
 [English](README.md) · [输入格式](docs/input.md) · [算法说明](docs/method.zh-CN.md) · [实验](docs/experiments.md)
 
@@ -15,7 +15,7 @@
 
 ![补测前：core 与 database 的模型概率均为 49.8%，建议探测 r1 到 r2](docs/assets/probe-before-v0.2.png)
 
-*`examples/ambiguous.json` 的 v0.2.0 实际报告。两个候选均为 49.8%，建议下一步测 `r1 → r2`。*
+*`examples/ambiguous.json` 的 v0.2.1 实际报告。两个候选均为 49.8%，建议下一步测 `r1 → r2`。*
 
 ## 补测后：多一条结果，排名变了
 
@@ -26,7 +26,7 @@
 ## 跑一下这个例子
 
 ```bash
-git clone --branch v0.2.0 https://github.com/crown-sports/netops-fault-lab.git
+git clone --branch v0.2.1 https://github.com/crown-sports/netops-fault-lab.git
 cd netops-fault-lab
 python -m venv .venv
 ```
