@@ -2,6 +2,10 @@
 
 ## Incident JSON
 
+Save the complete example below as `incident.json`. Replace the node/link IDs
+with your topology and each observation with one measurement you collected.
+Use the measured route, rather than guessing a path from its endpoints.
+
 ```json
 {
   "schema_version": 1,
@@ -86,7 +90,29 @@ Reports contain input identifiers and paths; review their content before sharing
 
 CLI exit `0` means a valid report was produced, including ambiguous results.
 Exit `2` means invalid input, parameters, unavailable optional dependencies or I/O failure.
-Output parents must exist; existing files are not overwritten.
+Since v0.2.1, output parent directories are created and the saved path is printed
+to stderr. With v0.2.0, create parents first. Existing files are never overwritten.
+
+## First incident and error recovery
+
+With v0.2.1, parent directories are created automatically:
+
+```bash
+netops-fault-lab diagnose incident.json --format html --output reports/incident-1/report.html
+```
+
+Open that file relative to your current directory. The minimal example above is
+ambiguous: either link could explain the failure. Run the proposed measurement
+with your own tooling, move its ID and path from `available_probes` to `observations`,
+remove `cost` and add its `outcome`. Save a second report under a new name. Probe IDs must remain
+unique across the two lists.
+
+If your collector reports `timeout`, decide whether it records a failed check
+(`fail`) or an absent observation (`missing`) before importing it; `timeout` is
+not an accepted outcome. A nonexistent edge, duplicate ID or malformed JSON
+returns `2` with an error on stderr and no new report. Correct the input and retry.
+A repeated output filename also returns `2`; choose a new file to preserve the
+earlier diagnosis. Do not treat a valid but ambiguous report as a command failure.
 
 ## Observation event identity
 

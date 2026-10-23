@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1 — 2026-10-23 (prerelease)
+
+Create missing report directories and print the saved path. Document a complete first incident, ambiguous outcomes and retry steps while preserving existing reports.
+
 ## 0.2.0 — 2026-10-22 · research preview
 
 - Include public fixtures and reproduction material in the source distribution; CI runs its bundled tests outside the checkout.

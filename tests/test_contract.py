@@ -87,6 +87,28 @@ class ContractTests(unittest.TestCase):
             self.assertEqual(result,2)
             self.assertFalse(output.exists())
 
+    def test_cli_nested_report_and_repeat_leave_prior_result_intact(self):
+        with tempfile.TemporaryDirectory() as folder:
+            output=Path(folder)/'incident'/'reports'/'result.json'
+            args=['diagnose',str(ROOT/'examples/ambiguous.json'),'--format','json','--output',str(output)]
+            error=io.StringIO()
+            with redirect_stderr(error):
+                self.assertEqual(main(args),0)
+            self.assertIn(str(output.resolve()),error.getvalue())
+            original=output.read_bytes()
+            self.assertEqual(json.loads(original)['status'],'ambiguous')
+            with redirect_stderr(io.StringIO()):
+                self.assertEqual(main(args),2)
+            self.assertEqual(output.read_bytes(),original)
+
+    def test_cli_invalid_input_does_not_create_report_directory(self):
+        with tempfile.TemporaryDirectory() as folder:
+            output=Path(folder)/'new'/'report.html'
+            with redirect_stderr(io.StringIO()):
+                self.assertEqual(main(['diagnose',str(Path(folder)/'absent.json'),
+                                       '--output',str(output)]),2)
+            self.assertFalse(output.parent.exists())
+
     def test_labeled_gzip_dataset_read_and_truth_validation(self):
         with tempfile.TemporaryDirectory() as folder:
             path=Path(folder)/'train.jsonl.gz'
